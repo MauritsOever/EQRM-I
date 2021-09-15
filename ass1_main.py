@@ -13,6 +13,13 @@ Date:
 
 Author: 
     Maurits van den Oever
+    
+    
+To do:
+    - make returns excess returns
+    - get libor rates daily (not on yahoo finance for some f#@% reason)
+    - make OLS estimator (zo gedaan)
+    - get ML estimators (iets meer werk dan zo gedaan)                        
 """
 
 
@@ -52,7 +59,7 @@ def Data_Puller(lTickers, sPath, sStart_date, sEnd_date):
     
     # hardcode all the arguments bc one assignment anyways, next time i can automate more easily
     # main args
-    lTickers = ['ASML.AS', 'SONY']
+    # lTickers = ['ASML.AS', 'SONY']
     #sPath = r"C:\Users\gebruiker\Documents\GitHub\QFRM\Data3\\"
     
     # some more args
@@ -71,7 +78,7 @@ def Data_Puller(lTickers, sPath, sStart_date, sEnd_date):
         
         def getData(ticker):
             print(ticker)
-            data = pdr.get_data_yahoo(ticker, start=sStart_date, end=sEnd_date)
+            data = yf.download(ticker, start=sStart_date, end=sEnd_date)
             dataname = ticker
             lFiles.append(dataname)
             SaveData(data, dataname)
@@ -110,21 +117,65 @@ def Data_Puller(lTickers, sPath, sStart_date, sEnd_date):
     dfrets = df.iloc[1:,len(lTickers)+1:len(df.columns)-1]
     return df, dfrets
 
+###########################################################
+### matrix definer 5003
 
+def matrix_definer_5003(dfrets):
+    """
+    Purpose:
+        define matrices for the CAPM model, namely the vector Y which holds and 
+        the matrix X
+        
+    Inputs:
+        dfrets, dataframe that holds returns
+    
+    Author:
+        Maurits van den Oever
+    """
+    vY = np.array(dfrets['^GSPC_ret'])
+    mX = np.ones((len(dfrets),2))
+    mX[:,1] = np.array(dfrets['NOW_ret']) # these are not excess yet
+    
+    return vY, mX
+
+###########################################################
+### CAPM OLS estimator
+
+def CAPM_OLS(vY, mX):
+    """
+    Purpose:
+        Estimate beta for the standard OLS CAPM model using rm, ri and rf
+    
+    Inputs:
+        vY
+        mX
+    
+    Author:
+        Maurits van den Oever
+    """
+    
+    vBeta = np.matmul(np.matmul(np.linalg.inv(np.matmul(np.transpose(mX), mX)), np.transpose(mX)), vY)
+    
+    return vBeta
 
 ###########################################################
 ### main
 
 def main():
-    lTickers = ['ASML.AS', 'SONY']
+    lTickers = ['NOW', '^GSPC'] # ri: service now, market: s&p, rf: 3m libor, ignore rf for now
     sPath = r"C:\Users\gebruiker\Documents\GitHub\EQRM-I\Data1\\"
     sStart_date = '2011-04-20'
     sEnd_date = '2021-04-20'
     
     
-    df, dfrets = Data_Puller(lTickers, sPath, sStart_date, sEnd_date)
+    dfrets = Data_Puller(lTickers, sPath, sStart_date, sEnd_date)[1]
     
-    return 
+    vY, mX = matrix_definer_5003(dfrets)
+    vBeta = CAPM_OLS(vY, mX)
+    
+    print(vBeta)
+    
+    return  
 
 
 
