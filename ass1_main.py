@@ -18,16 +18,25 @@ Author:
 To do:
     - make returns excess returns
     - get libor rates daily (not on yahoo finance for some f#@% reason)
-    - make OLS estimator (zo gedaan)
-    - get ML estimators (iets meer werk dan zo gedaan)                        
+    - redefine dS2/dNu in vLL function (figure out how to do it)
+    - get function that optimizes vLL function
+    - get function that gets covariance matrices...
+
+Then we're pretty much done :D                        
 """
 
 
 ###########################################################
 ### Imports
 import numpy as np
-# import pandas as pd
-# import matplotlib.pyplot as plt
+import os
+import pandas as pd
+#from pandas_datareader import data as pdr
+#from datetime import date
+import yfinance as yf
+import scipy.optimize as opt
+import scipy.stats as st
+yf.pdr_override()
 
 
 ###########################################################
@@ -48,23 +57,7 @@ def Data_Puller(lTickers, sPath, sStart_date, sEnd_date):
         Maurits van den Oever
     """
     
-    # specify packages just in case:
-    import os
-    import numpy as np
-    import pandas as pd
-    from pandas_datareader import data as pdr
-    from datetime import date
-    import yfinance as yf
-    yf.pdr_override()
     
-    # hardcode all the arguments bc one assignment anyways, next time i can automate more easily
-    # main args
-    # lTickers = ['ASML.AS', 'SONY']
-    #sPath = r"C:\Users\gebruiker\Documents\GitHub\QFRM\Data3\\"
-    
-    # some more args
-    #sStart_date = '2011-04-20'
-    #sEnd_date = '2021-04-20'
     lFiles = []
     
     # check if function has run/downloaded stuff before:
@@ -154,26 +147,84 @@ def CAPM_OLS(vY, mX):
         Maurits van den Oever
     """
     
-    vBeta = np.matmul(np.matmul(np.linalg.inv(np.matmul(np.transpose(mX), mX)), np.transpose(mX)), vY)
+    vBeta = np.linalg.inv(np.transpose(mX)@mX)@np.transpose(mX)@vY
     
     return vBeta
+
+###########################################################
+### vLLn/t
+def get_vLL(vY, mX, vBeta, sDist):
+    """
+    Purpose:
+        Returns a vector of log likelihoods given the inputs
+    
+    Inputs:
+        vY      vector of Y data
+        mX      X matrix
+        vBeta   vector containing beta's
+        sDist   string denoting which distribution to use
+    """
+    vYhat = np.matmul(mX, vBeta)
+    vE = vY - vYhat
+    
+    # just to get a scalar for now, but dS2 needs to be redefined
+    
+    
+    if sDist == 'normal':
+        dS2 = np.std(vE)
+        vLL = st.norm.logpdf(vE, scale= np.sqrt(dS2))
+    elif sDist == 't':
+        dNu, _, dS2 = st.t.fit(vE)
+        vLL = st.t.logpdf(vE, df= dNu, scale= np.sqrt(dS2))
+    else: 
+        print('Please pick a supported distribution, either normal for normal or t for student t')
+        vLL = 'error'
+        
+    return vLL
+
+###########################################################
+### ML optimizer
+def vLL_optimizer(vBeta, vY, mX, sDist):
+    """
+    Purpose:
+        optimizes the get_vLL function to return vBeta_hat ML
+    
+    Inputs:
+        vBeta
+        vY
+        mX
+        sDist
+    """
+    AvgNLL= lambda vBeta: -np .mean(get_vLL(vY, mX , vBeta, sDist))
+    res   = opt.minimize(AvgNLL, vBeta, method="BFGS")
+    print(res.message)
+    print('vBetahat_ML = ', res.x)
+    return res
+    
 
 ###########################################################
 ### main
 
 def main():
+    # define variables needed
     lTickers = ['NOW', '^GSPC'] # ri: service now, market: s&p, rf: 3m libor, ignore rf for now
     sPath = r"C:\Users\gebruiker\Documents\GitHub\EQRM-I\Data1\\"
     sStart_date = '2011-04-20'
     sEnd_date = '2021-04-20'
     
+    # define dataframe used
+    dfrets = Data_Puller(lTickers, sPath, sStart_date, sEnd_date)[1] # (rets need some redefinition)
+    vY, mX = matrix_definer_5003(dfrets) #define x and y matrices and vectors
     
-    dfrets = Data_Puller(lTickers, sPath, sStart_date, sEnd_date)[1]
-    
-    vY, mX = matrix_definer_5003(dfrets)
+    # calc beta from OLS given
     vBeta = CAPM_OLS(vY, mX)
-    
     print(vBeta)
+    
+    # try to get some vLL given dists:
+    vLLnorm = get_vLL(vY, mX, vBeta, 'normal')
+    vLLt = get_vLL(vY, mX, vBeta, 't') # okay it works, not yet perfect though
+    
+    vBetaML = 
     
     return  
 
