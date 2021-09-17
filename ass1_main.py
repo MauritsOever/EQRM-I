@@ -111,6 +111,36 @@ def Data_Puller(lTickers, sPath, sStart_date, sEnd_date):
     return df, dfrets
 
 ###########################################################
+### dataloader function
+def dataloader():
+    df = pd.read_csv(r"C:\Users\gebruiker\Documents\GitHub\EQRM-I\Data1\NOW.csv")
+    df['vNow'] = df['Adj Close']
+    df = df.iloc[:,list([0,-1])]
+    
+    df_gspc = pd.read_csv(r"C:\Users\gebruiker\Documents\GitHub\EQRM-I\Data1\^GSPC.csv")
+    df_gspc['vGspc'] = df_gspc['Adj Close']
+    df_gspc = df_gspc.iloc[:,list([0,-1])]
+    
+    df_lib = pd.read_csv(r"C:\Users\gebruiker\Documents\GitHub\EQRM-I\Data1\USD3MTD156N.csv")
+    df_lib['vLib'] = df_lib['USD3MTD156N']
+    df_lib = df_lib.ffill()
+    df_lib = df_lib.iloc[:,list([0,-1])]
+    
+    df_lib['Date'] = pd.to_datetime(df_lib['Date'])
+    df['Date'] = pd.to_datetime(df['Date'])
+    df_gspc['Date'] = pd.to_datetime(df_gspc['Date'])
+    
+    df = pd.merge(df, df_gspc, how='left', on=['Date'])
+    df = pd.merge(df, df_lib, how='left', on=['Date'])
+    df = df.dropna(axis=1)
+    
+    for tic in df.columns[1:3]:
+        df[tic+'_ret'] = np.log(df[tic]) - np.log(df[tic].shift(1))
+    
+    
+    dfrets()
+
+###########################################################
 ### matrix definer 5003
 
 def matrix_definer_5003(dfrets):
@@ -209,8 +239,8 @@ def main():
     # define variables needed
     lTickers = ['NOW', '^GSPC'] # ri: service now, market: s&p, rf: 3m libor, ignore rf for now
     sPath = r"C:\Users\gebruiker\Documents\GitHub\EQRM-I\Data1\\"
-    sStart_date = '2011-04-20'
-    sEnd_date = '2021-04-20'
+    sStart_date = '2000-09-15'
+    sEnd_date = '2021-09-15'
     
     # define dataframe used
     dfrets = Data_Puller(lTickers, sPath, sStart_date, sEnd_date)[1] # (rets need some redefinition)
