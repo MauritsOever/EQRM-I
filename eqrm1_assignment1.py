@@ -155,8 +155,6 @@ def main():
     #Get X and y
     (mX, vy) = XyExtract(mData)
     
-    vBeta_hat = np.linalg.inv(np.transpose(mX) @ mX) @ np.transpose(mX) @ vy
-    
     # Estimation
     vBeta_hat = np.linalg.inv(np.transpose(mX) @ mX) @ np.transpose(mX) @ vy
     # Output
