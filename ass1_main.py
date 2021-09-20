@@ -36,6 +36,7 @@ import pandas as pd
 import yfinance as yf
 import scipy.optimize as opt
 import scipy.stats as st
+import quandl
 yf.pdr_override()
 
 
@@ -112,33 +113,39 @@ def Data_Puller(lTickers, sPath, sStart_date, sEnd_date):
 
 ###########################################################
 ### dataloader function
-def dataloader():
-    df = pd.read_csv(r"C:\Users\gebruiker\Documents\GitHub\EQRM-I\Data1\NOW.csv")
-    df['vNow'] = df['Adj Close']
-    df = df.iloc[:,list([0,-1])]
+def YahooFREDPull(sStart_date, sEnd_date, sTicker):
+    """
+    Purpose:
+        Pull stock price data of a specified ticker and S&P500 from Yahoo Finance.
+        
+    Inputs:
+        sStart_date     Date as string, start date of the stock prices
+        sEnd_date       Date as string, end date of the stock prices
+        sTicker         String, ticker of the stock
+        
+    Returns:
+        
+    """
+
+    # get prices of all series: stock, s&p, and tbill3m
+    vStockClose = yf.Ticker(sTicker).history(start = sStart_date, end = sEnd_date)['Close']
+    vSPClose = yf.Ticker('^GSPC').history(start = sStart_date, end = sEnd_date)['Close']
+    vTbillClose = quandl.get('FRED/DTB3', start_date = sStart_date, end_date = sEnd_date)
     
-    df_gspc = pd.read_csv(r"C:\Users\gebruiker\Documents\GitHub\EQRM-I\Data1\^GSPC.csv")
-    df_gspc['vGspc'] = df_gspc['Adj Close']
-    df_gspc = df_gspc.iloc[:,list([0,-1])]
+    vStockRet = np.log(vStockClose) - np.log(vStockClose.shift(1))
+    vSPRet = np.log(vSPClose) - np.log(vSPClose.shift(1))
+    vTbillClose *= ((1/100)/250)
     
-    df_lib = pd.read_csv(r"C:\Users\gebruiker\Documents\GitHub\EQRM-I\Data1\USD3MTD156N.csv")
-    df_lib['vLib'] = df_lib['USD3MTD156N']
-    df_lib = df_lib.ffill()
-    df_lib = df_lib.iloc[:,list([0,-1])]
+    dfrets = pd.DataFrame({'vStockRet': vStockRet, 
+                           'vSPRet': vSPRet, 
+                           'vTbill': vTbillClose.iloc[:,0]})
+    dfrets = dfrets.dropna(axis=0)
     
-    df_lib['Date'] = pd.to_datetime(df_lib['Date'])
-    df['Date'] = pd.to_datetime(df['Date'])
-    df_gspc['Date'] = pd.to_datetime(df_gspc['Date'])
+    # write a csv real quick to load if needed:
+    # dfrets.to_csv(r'C:\Users\gebruiker\Documents\GitHub\EQRM-I\Data1\data_main.csv')
     
-    df = pd.merge(df, df_gspc, how='left', on=['Date'])
-    df = pd.merge(df, df_lib, how='left', on=['Date'])
-    df = df.dropna(axis=1)
-    
-    for tic in df.columns[1:3]:
-        df[tic+'_ret'] = np.log(df[tic]) - np.log(df[tic].shift(1))
-    
-    
-    dfrets()
+    # make return series, and transform...
+    return 
 
 ###########################################################
 ### matrix definer 5003
@@ -238,6 +245,7 @@ def vLL_optimizer(vBeta, vY, mX, sDist):
 def main():
     # define variables needed
     lTickers = ['NOW', '^GSPC'] # ri: service now, market: s&p, rf: 3m libor, ignore rf for now
+    sTicker = 'KO'
     sPath = r"C:\Users\gebruiker\Documents\GitHub\EQRM-I\Data1\\"
     sStart_date = '2000-09-15'
     sEnd_date = '2021-09-15'
@@ -248,13 +256,15 @@ def main():
     
     # calc beta from OLS given
     vBeta = CAPM_OLS(vY, mX)
+    print('OLS betas are equal to:')
     print(vBeta)
+    print('')
     
     # try to get some vLL given dists:
     vLLnorm = get_vLL(vY, mX, vBeta, 'normal')
     vLLt = get_vLL(vY, mX, vBeta, 't') # okay it works, not yet perfect though
     
-    vBetaML = 
+    # vBetaML = 
     
     return  
 
