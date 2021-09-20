@@ -158,11 +158,8 @@ def main():
     vBeta_hat = np.linalg.inv(np.transpose(mX) @ mX) @ np.transpose(mX) @ vy
     
     # Estimation
-
+    vBeta_hat = np.linalg.inv(np.transpose(mX) @ mX) @ np.transpose(mX) @ vy
     # Output
-    model = sm.OLS(vy,mX)
-    results = model.fit()
-    results.params
     
 
 ###########################################################
