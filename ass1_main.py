@@ -132,20 +132,23 @@ def YahooFREDPull(sStart_date, sEnd_date, sTicker):
     vSPClose = yf.Ticker('^GSPC').history(start = sStart_date, end = sEnd_date)['Close']
     vTbillClose = quandl.get('FRED/DTB3', start_date = sStart_date, end_date = sEnd_date)
     
-    vStockRet = np.log(vStockClose) - np.log(vStockClose.shift(1))
-    vSPRet = np.log(vSPClose) - np.log(vSPClose.shift(1))
-    vTbillClose *= ((1/100)/250)
+    vStockRet = 100*(np.log(vStockClose) - np.log(vStockClose.shift(1)))
+    vSPRet = 100*(np.log(vSPClose) - np.log(vSPClose.shift(1)))
+    vTbillClose *= (1/250)
     
     dfrets = pd.DataFrame({'vStockRet': vStockRet, 
                            'vSPRet': vSPRet, 
                            'vTbill': vTbillClose.iloc[:,0]})
     dfrets = dfrets.dropna(axis=0)
+    dfrets['vStockRet'] = dfrets['vStockRet'] - dfrets['vTbill']
+    dfrets['vSPRet'] = dfrets['vSPRet'] - dfrets['vTbill']
     
+    dfrets = dfrets[list(['vStockRet', 'vSPRet'])]
     # write a csv real quick to load if needed:
-    # dfrets.to_csv(r'C:\Users\gebruiker\Documents\GitHub\EQRM-I\Data1\data_main.csv')
+    dfrets.to_csv(r'C:\Users\gebruiker\Documents\GitHub\EQRM-I\Data1\data_main.csv')
     
-    # make return series, and transform...
-    return 
+    
+    return dfrets
 
 ###########################################################
 ### matrix definer 5003
@@ -162,9 +165,9 @@ def matrix_definer_5003(dfrets):
     Author:
         Maurits van den Oever
     """
-    vY = np.array(dfrets['^GSPC_ret'])
+    vY = np.array(dfrets['vSPRet'])
     mX = np.ones((len(dfrets),2))
-    mX[:,1] = np.array(dfrets['NOW_ret']) # these are not excess yet
+    mX[:,1] = np.array(dfrets['vStockRet']) # these are not excess yet
     
     return vY, mX
 
@@ -185,6 +188,8 @@ def CAPM_OLS(vY, mX):
     """
     
     vBeta = np.linalg.inv(np.transpose(mX)@mX)@np.transpose(mX)@vY
+    
+    # standard errors...
     
     return vBeta
 
