@@ -14,7 +14,6 @@ Date:
 Author: 
     Maurits van den Oever
     
-    
 To do:
     - redefine dS2/dNu in vLL function (figure out how to do it)
     - get function that gets covariance matrices...
@@ -38,78 +37,7 @@ yf.pdr_override()
 
 
 ###########################################################
-### Data Puller
-def Data_Puller(lTickers, sPath, sStart_date, sEnd_date):
-    """
-    Purpose:
-        Pull data from Yahoo finance, having specified the needed tickers, start and end dates, 
-        and filesPath for the data files
-
-    Inputs:
-        lTickers        list of strings, ticker names
-        sPath           string of filepath for the data files
-        sStart_date     string, start date in format yyyy-mm-dd
-        sEnd_date       string, end date in format yyyy-mm-dd
-
-    Author:
-        Maurits van den Oever
-    """
-    
-    
-    lFiles = []
-    
-    # check if function has run/downloaded stuff before:
-    if 'data_main.csv' in os.listdir(sPath):
-        df = pd.read_csv(sPath+"data_main.csv",index_col=0)
-        
-    else:
-        def SaveData(df, filename):
-            df.to_csv(sPath +filename+".csv")
-            
-        
-        def getData(ticker):
-            print(ticker)
-            data = yf.download(ticker, start=sStart_date, end=sEnd_date)
-            dataname = ticker
-            lFiles.append(dataname)
-            SaveData(data, dataname)
-            
-        for tik in lTickers:
-            getData(tik)
-        
-        
-        df = pd.read_csv(sPath+str(lFiles[0])+".csv")
-        df[str(lFiles[0])] = df['Adj Close']
-        # filter df on adjclose and date:
-        df = df.iloc[:,list([0,-1])]
-        
-        for i in range(1, len(lFiles)):
-        #for i in range(1, 3):
-            df1 = pd.read_csv(sPath+str(lFiles[i])+".csv")
-            df1[str(lFiles[i])] = df1['Adj Close']
-            df1 = df1.iloc[:,list([0,-1])]
-            
-            # now join those df1s to df for master dataset to get 
-            df = pd.merge(df, df1, how='left', on=['Date'])
-        
-        # clean it up a bit, remove nans by ffill
-        df = df.iloc[1:,:]
-        df = df.ffill(axis=0)
-    
-        # get log returns for every ticker
-        
-        for tic in df.columns[1:]:
-            df[tic+'_ret'] = np.log(df[tic]) - np.log(df[tic].shift(1))
-            
-        # get some portfolio returns, assume average weight...
-        df['port_ret'] = df.iloc[:,len(lTickers)+1:len(df.columns)+1].mean(axis=1)
-        df.to_csv(sPath+'data_main.csv')
-    
-    dfrets = df.iloc[1:,len(lTickers)+1:len(df.columns)-1]
-    return df, dfrets
-
-###########################################################
-### dataloader function
+### YahooFREDPull
 def YahooFREDPull(sStart_date, sEnd_date, sTicker):
     """
     Purpose:
@@ -121,7 +49,7 @@ def YahooFREDPull(sStart_date, sEnd_date, sTicker):
         sTicker         String, ticker of the stock
         
     Returns:
-        
+        dataframe containing excess returns for S&P and the stock
     """
 
     # get prices of all series: stock, s&p, and tbill3m
@@ -145,7 +73,7 @@ def YahooFREDPull(sStart_date, sEnd_date, sTicker):
     # dfrets.to_csv(r'C:\Users\gebruiker\Documents\GitHub\EQRM-I\Data1\data_main.csv')
     
     
-    # load in instead of pull for quandl limits:
+    # load in instead of pull for quandl limits, but hand it in w/ code above cuz then its ready to run:
     dfrets = pd.read_csv(r'C:\Users\gebruiker\Documents\GitHub\EQRM-I\Data1\data_main.csv')
     
     
@@ -248,16 +176,86 @@ def vLL_optimizer(vBeta, vY, mX, sDist):
     print(res.message)
     print('vBetahat_ML = ', res.x)
     return res
+
+###########################################################
+### vh= _gh_stepsize(vP)
+def _gh_stepsize(vP):    
+    """    
+    Purpose:        
+        Calculate stepsize close (but not too close) to machine precision    
+        
+    Inputs:        
+        vP      1D array of parameters    
     
+    Return value:        
+        vh      1D array of step sizes    
+    """    
+    vh = 1e-8*(np.fabs(vP)+1e-8)   # Find stepsize    
+    vh= np.maximum(vh, 5e-6)       # Don't go too small    
+    return vh
+
+
+############################################################## mH= hessian_2sided(fun, vP, *args)
+def hessian_2sided(fun, vP, *args):    
+    """    
+    Purpose:      
+        Compute numerical hessian, using a 2-sided numerical difference    
+        
+    Author:      
+        Kevin Sheppard, adapted by Charles Bos    
+    
+    Source:      
+        https://www.kevinsheppard.com/Python_for_Econometrics  
+        
+    Inputs:      
+        fun     function, as used for minimize()      
+        vP      1D array of size iP of optimal parameters      
+        args    (optional) extra arguments    
+    
+    Return value:      
+        mH      iP x iP matrix with symmetric hessian    
+    """    
+    iP = np.size(vP,0)    
+    vP= vP.reshape(iP)    # Ensure vP is 1D-array    
+    f = fun(vP, *args)    
+    vh= _gh_stepsize(vP)    
+    vPh = vP + vh    
+    vh = vPh - vP    
+    mh = np.diag(vh)            # Build a diagonal matrix out of vh    
+    fp = np.zeros(iP)    
+    fm = np.zeros(iP)
+    
+    for i in range(iP):        
+        fp[i] = fun(vP+mh[i], *args)        
+        fm[i] = fun(vP-mh[i], *args)    
+        
+    fpp = np.zeros((iP,iP))    
+    fmm = np.zeros((iP,iP))
+    
+    for i in range(iP):        
+        for j in range(i,iP):            
+            fpp[i,j] = fun(vP + mh[i] + mh[j], *args)            
+            fpp[j,i] = fpp[i,j]            
+            fmm[i,j] = fun(vP - mh[i] - mh[j], *args)            
+            fmm[j,i] = fmm[i,j]    
+            
+    vh = vh.reshape((iP,1))   
+    mhh = vh @ vh.T             # mhh= h h', outer product of h-vector
+    mH = np.zeros((iP,iP))    
+    for i in range(iP):        
+        for j in range(i,iP):            
+            mH[i,j] = (fpp[i,j] - fp[i] - fp[j] + f + f - fm[i] - fm[j] + fmm[i,j])/mhh[i,j]/2            
+            mH[j,i] = mH[i,j]    
+            
+    return mH
 
 ###########################################################
 ### main
 
 def main():
     # define variables needed
-    lTickers = ['NOW', '^GSPC'] # ri: service now, market: s&p, rf: 3m libor, ignore rf for now
     sTicker = 'KO'
-    sPath = r"C:\Users\gebruiker\Documents\GitHub\EQRM-I\Data1\\"
+    # sPath = r"C:\Users\gebruiker\Documents\GitHub\EQRM-I\Data1\\"
     sStart_date = '2000-09-15'
     sEnd_date = '2021-09-15'
     
@@ -274,11 +272,14 @@ def main():
     print(vSE_OLS)
     print('')
     
-    # try to get some vLL given dists:
-    vLLnorm = get_vLL(vY, mX, vBeta, 'normal')
-    vLLt = get_vLL(vY, mX, vBeta, 't') # okay it works, not yet perfect though
+    resML_norm = vLL_optimizer(vBeta, vY, mX, 'normal')
+    resML_t = vLL_optimizer(vBeta, vY, mX, 't') # nice estimates...
     
-    # vBetaML = 
+    avgNLL_norm = lambda vBeta: -np .mean(get_vLL(vY, mX , vBeta, 'normal'))
+    mHessian_norm = -hessian_2sided(avgNLL_norm, resML_norm.x) # ayy lmao
+    
+    avgNLL_t = lambda vBeta: -np.mean(get_vLL(vY, mX, vBeta, 't'))
+    mHessian_t = -hessian_2sided(get)
     
     return  
 
