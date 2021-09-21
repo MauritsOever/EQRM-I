@@ -16,10 +16,7 @@ Author:
     
     
 To do:
-    - make returns excess returns
-    - get libor rates daily (not on yahoo finance for some f#@% reason)
     - redefine dS2/dNu in vLL function (figure out how to do it)
-    - get function that optimizes vLL function
     - get function that gets covariance matrices...
 
 Then we're pretty much done :D                        
@@ -128,24 +125,28 @@ def YahooFREDPull(sStart_date, sEnd_date, sTicker):
     """
 
     # get prices of all series: stock, s&p, and tbill3m
-    vStockClose = yf.Ticker(sTicker).history(start = sStart_date, end = sEnd_date)['Close']
-    vSPClose = yf.Ticker('^GSPC').history(start = sStart_date, end = sEnd_date)['Close']
-    vTbillClose = quandl.get('FRED/DTB3', start_date = sStart_date, end_date = sEnd_date)
+    # vStockClose = yf.Ticker(sTicker).history(start = sStart_date, end = sEnd_date)['Close']
+    # vSPClose = yf.Ticker('^GSPC').history(start = sStart_date, end = sEnd_date)['Close']
+    # vTbillClose = quandl.get('FRED/DTB3', start_date = sStart_date, end_date = sEnd_date)
     
-    vStockRet = 100*(np.log(vStockClose) - np.log(vStockClose.shift(1)))
-    vSPRet = 100*(np.log(vSPClose) - np.log(vSPClose.shift(1)))
-    vTbillClose *= (1/250)
+    # vStockRet = 100*(np.log(vStockClose) - np.log(vStockClose.shift(1)))
+    # vSPRet = 100*(np.log(vSPClose) - np.log(vSPClose.shift(1)))
+    # vTbillClose *= (1/250)
     
-    dfrets = pd.DataFrame({'vStockRet': vStockRet, 
-                           'vSPRet': vSPRet, 
-                           'vTbill': vTbillClose.iloc[:,0]})
-    dfrets = dfrets.dropna(axis=0)
-    dfrets['vStockRet'] = dfrets['vStockRet'] - dfrets['vTbill']
-    dfrets['vSPRet'] = dfrets['vSPRet'] - dfrets['vTbill']
+    # dfrets = pd.DataFrame({'vStockRet': vStockRet, 
+    #                         'vSPRet': vSPRet, 
+    #                         'vTbill': vTbillClose.iloc[:,0]})
+    # dfrets = dfrets.dropna(axis=0)
+    # dfrets['vStockRet'] = dfrets['vStockRet'] - dfrets['vTbill']
+    # dfrets['vSPRet'] = dfrets['vSPRet'] - dfrets['vTbill']
     
-    dfrets = dfrets[list(['vStockRet', 'vSPRet'])]
-    # write a csv real quick to load if needed:
-    dfrets.to_csv(r'C:\Users\gebruiker\Documents\GitHub\EQRM-I\Data1\data_main.csv')
+    # dfrets = dfrets[list(['vStockRet', 'vSPRet'])]
+    # # write a csv real quick to load if needed:
+    # dfrets.to_csv(r'C:\Users\gebruiker\Documents\GitHub\EQRM-I\Data1\data_main.csv')
+    
+    
+    # load in instead of pull for quandl limits:
+    dfrets = pd.read_csv(r'C:\Users\gebruiker\Documents\GitHub\EQRM-I\Data1\data_main.csv')
     
     
     return dfrets
@@ -190,8 +191,13 @@ def CAPM_OLS(vY, mX):
     vBeta = np.linalg.inv(np.transpose(mX)@mX)@np.transpose(mX)@vY
     
     # standard errors...
+    vEHat = vY - mX@vBeta
+    dN = len(vY)
+    dSigmaHat = (1/dN)*np.sum(vEHat**2)
     
-    return vBeta
+    vSE_OLS = dSigmaHat * np.linalg.inv((np.transpose(mX)@mX))
+    
+    return vBeta, vSE_OLS
 
 ###########################################################
 ### vLLn/t
@@ -256,13 +262,16 @@ def main():
     sEnd_date = '2021-09-15'
     
     # define dataframe used
-    dfrets = Data_Puller(lTickers, sPath, sStart_date, sEnd_date)[1] # (rets need some redefinition)
+    dfrets = YahooFREDPull(sStart_date, sEnd_date, sTicker)
     vY, mX = matrix_definer_5003(dfrets) #define x and y matrices and vectors
     
     # calc beta from OLS given
-    vBeta = CAPM_OLS(vY, mX)
+    vBeta, vSE_OLS = CAPM_OLS(vY, mX)
     print('OLS betas are equal to:')
     print(vBeta)
+    print('')
+    print('OLS standard errors are: ')
+    print(vSE_OLS)
     print('')
     
     # try to get some vLL given dists:
