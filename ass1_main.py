@@ -147,7 +147,7 @@ def get_vLL(vY, mX, vBeta, sDist):
     
     
     if sDist == 'normal':
-        dS2 = np.std(vE)
+        dS2 = np.std(vE)**2
         vLL = st.norm.logpdf(vE, scale= np.sqrt(dS2))
     elif sDist == 't':
         dNu, _, dS2 = st.t.fit(vE)
@@ -272,14 +272,21 @@ def main():
     print(vSE_OLS)
     print('')
     
+    # ML norm starts here
     resML_norm = vLL_optimizer(vBeta, vY, mX, 'normal')
-    resML_t = vLL_optimizer(vBeta, vY, mX, 't') # nice estimates...
-    
     avgNLL_norm = lambda vBeta: -np .mean(get_vLL(vY, mX , vBeta, 'normal'))
-    mHessian_norm = -hessian_2sided(avgNLL_norm, resML_norm.x) # ayy lmao
+    mHessian_norm = -hessian_2sided(avgNLL_norm, resML_norm.x) # seems correct...
     
+    # get covariance matrix non robust
+    
+    # now robust
+    
+    # ML t starts here
+    resML_t = vLL_optimizer(vBeta, vY, mX, 't') # nice estimates...
     avgNLL_t = lambda vBeta: -np.mean(get_vLL(vY, mX, vBeta, 't'))
-    mHessian_t = -hessian_2sided(get)
+    mHessian_t = -hessian_2sided(avgNLL_t, resML_t.x) # seems way too big
+    
+    
     
     return  
 
