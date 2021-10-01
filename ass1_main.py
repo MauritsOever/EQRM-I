@@ -12,13 +12,7 @@ Date:
     2021/13/9
 
 Author: 
-    Maurits van den Oever
-    
-To do:
-    - redefine dS2/dNu in vLL function (figure out how to do it)
-    - get function that gets covariance matrices...
-
-Then we're pretty much done :D                        
+    Maurits van den Oever                      
 """
 
 
