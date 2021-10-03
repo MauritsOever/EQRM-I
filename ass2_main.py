@@ -113,7 +113,7 @@ def daily_corrs(dfret_daily, est_type, kernel_type):
         numerator_ko = 0
         denominator = 0
         for j in dfret_daily.index:
-            if (i - j).days / 365 < dh:
+            if np.abs((i - j).days) / 365 < dh:
                 numerator_msft += 0.5*dfret_daily['vMSFTRet'][j]
                 numerator_ko += 0.5*dfret_daily['vKORet'][j]
                 denominator += 0.5
@@ -123,7 +123,31 @@ def daily_corrs(dfret_daily, est_type, kernel_type):
         
         print(dfret_daily['vMSFT_NW'][i]) # look at estimates, see if it makes sense
         
+    
     # now get var, covar and then rho is ezpz
+    dfret_daily['vMSFT_var'] = np.full(len(dfret_daily), np.nan) # to store var ests
+    dfret_daily['vKO_var'] = np.full(len(dfret_daily), np.nan) # to store var ests
+    dfret_daily['vMSFT_KO_cov'] = np.full(len(dfret_daily), np.nan) # to store covar ests
+    
+    for i in dfret_daily[start_date:end_date].index:
+        dfret_daily['vMSFT_var'][i] = 0
+        dfret_daily['vKO_var'][i] = 0
+        dfret_daily['vMSFT_KO_cov'][i] = 0
+        
+        for j in dfret_daily.index:
+            if np.abs((i - j).days) / 365 < dh:
+                dfret_daily['vMSFT_var'][i] += (dfret_daily['vMSFTRet'][j] - dfret_daily['vMSFT_NW'][i])**2
+                dfret_daily['vKO_var'][i] += (dfret_daily['vKORet'][j] - dfret_daily['vKO_NW'][i])**2
+                dfret_daily['vMSFT_KO_cov'][i] += (dfret_daily['vMSFTRet'][j] - dfret_daily['vMSFT_NW'][i]) * (dfret_daily['vKORet'][j] - dfret_daily['vKO_NW'][i])    
+        
+        dfret_daily['vMSFT_var'][i] /= len(dfret_daily[start_date:end_date].index)   
+        dfret_daily['vKO_var'][i] /= len(dfret_daily[start_date:end_date].index)   
+        dfret_daily['vMSFT_KO_cov'][i] /= len(dfret_daily[start_date:end_date].index)   
+        
+        print(dfret_daily['vKO_var'][i], dfret_daily['vMSFT_KO_cov'][i])
+        
+    
+    return
 
 ###########################################################
 ### main
