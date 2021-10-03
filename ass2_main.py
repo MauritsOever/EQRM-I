@@ -87,13 +87,13 @@ def daily_corrs(dfret_daily, est_type, kernel_type):
     Inputs:
         dfret_daily         df with daily returns
         est_type            string, estimation types, can choose between NW
-        kernel_type         string, kernel type, can choose between ''
+        kernel_type         string, kernel type, can choose between 'uniform' also wanna do triangular 
         
     To do:
         - get vector of weight based on kernel... not really needed, did the multiplication autimatically in the same line bc kernel func
         - get NW estimate for average, {{{DONE}}}
         - get variances based on rets 
-        - get cov based on rets
+        - get cov based on rets {{{IMPLEMENTATION NEEDS ADJUSTING}}}
         - calc rho for that t
         
         - loop over middle year
@@ -128,6 +128,7 @@ def daily_corrs(dfret_daily, est_type, kernel_type):
     dfret_daily['vMSFT_var'] = np.full(len(dfret_daily), np.nan) # to store var ests
     dfret_daily['vKO_var'] = np.full(len(dfret_daily), np.nan) # to store var ests
     dfret_daily['vMSFT_KO_cov'] = np.full(len(dfret_daily), np.nan) # to store covar ests
+    dfret_daily['vMSFT_KO_corr'] = np.full(len(dfret_daily), np.nan) # to store corr ests
     
     for i in dfret_daily[start_date:end_date].index:
         dfret_daily['vMSFT_var'][i] = 0
@@ -142,9 +143,10 @@ def daily_corrs(dfret_daily, est_type, kernel_type):
         
         dfret_daily['vMSFT_var'][i] /= len(dfret_daily[start_date:end_date].index)   
         dfret_daily['vKO_var'][i] /= len(dfret_daily[start_date:end_date].index)   
-        dfret_daily['vMSFT_KO_cov'][i] /= len(dfret_daily[start_date:end_date].index)   
+        dfret_daily['vMSFT_KO_cov'][i] /= len(dfret_daily[start_date:end_date].index)  
+        dfret_daily['vMSFT_KO_corr'][i] = dfret_daily['vMSFT_KO_cov'][i] / np.sqrt(dfret_daily['vMSFT_var'][i] * dfret_daily['vKO_var'][i]  ) 
         
-        print(dfret_daily['vKO_var'][i], dfret_daily['vMSFT_KO_cov'][i])
+        print(dfret_daily['vKO_var'][i], dfret_daily['vMSFT_KO_corr'][i])
         
     
     return
